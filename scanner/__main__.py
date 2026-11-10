@@ -1,17 +1,26 @@
 import os
 from pathlib import Path
 import queue
-import sys
 import tempfile
+import sqlite3
+import yara
+import sys
 from threading import Event, Thread
 import tkinter as tk
 from tkinter import filedialog, font, messagebox, ttk
 
-from .engine import Scanner, SignatureDB, make_demo
+from .engine import Scanner, SignatureDB, create_safe_demo
 from .vault import Vault
 
 
 EN = {
+    "演示命中": "Demo match",
+    "检测详情（只读）": "Detection details (read-only)", "命中记录": "Matched record",
+    "来源": "Source", "签名名称": "Signature name", "规则位置": "Rule location",
+    "规则": "Rule", "启发式线索": "Heuristic clues", "关闭": "Close",
+    "没有匹配的签名或启发式线索。": "No matching signatures or heuristic clues.",
+    "EICAR 是标准测试文件，命中不代表存在真实病毒。": "EICAR is a standard test file; a match does not indicate actual malware.",
+    "YARA 启发式：文档扩展名后又跟着可执行扩展名": "YARA heuristic: document extension followed by an executable extension",
     "PE 含同时可写和可执行的区段": "PE section is writable and executable",
     "PE 可执行区段熵较高，可能被压缩或加壳": "High entropy in a PE executable section (possible packing)",
     "CourseScanner | 反恶意软件实验": "CourseScanner | Anti-malware Lab",
@@ -52,6 +61,7 @@ EN = {
     "恢复路径不合法": "Invalid restore path",
     "此项没有有效扫描结果。": "No valid scan result for this item.",
     "演示失败": "Demo Failed", "启动失败": "Startup Failed", "无法处置": "Action Unavailable",
+    "演示样本缺失：{names}": "Demo samples are missing: {names}",
     "请选择签名命中或可疑的文件。": "Select a signature match or a suspicious file.",
     "隔离": "Quarantine", "永久删除（不进回收站）": "Delete permanently (bypasses Recycle Bin)",
     "恢复（恢复不代表文件安全）": "Restore (does not certify the file is safe)",
@@ -60,6 +70,13 @@ EN = {
     "已完成：{action}": "Completed: {action}", "处置失败": "File Action Failed", "操作失败": "Action Failed",
 }
 RU = {
+    "演示命中": "Демонстрационное совпадение",
+    "检测详情（只读）": "Подробности обнаружения (только чтение)", "命中记录": "Найденная запись",
+    "来源": "Источник", "签名名称": "Название сигнатуры", "规则位置": "Расположение правила",
+    "规则": "Правило", "启发式线索": "Эвристические признаки", "关闭": "Закрыть",
+    "没有匹配的签名或启发式线索。": "Совпадений с сигнатурами и эвристических признаков нет.",
+    "EICAR 是标准测试文件，命中不代表存在真实病毒。": "EICAR — стандартный тестовый файл, а не вредоносная программа.",
+    "YARA 启发式：文档扩展名后又跟着可执行扩展名": "Эвристика YARA: расширение документа перед исполняемым расширением",
     "PE 含同时可写和可执行的区段": "Секция PE доступна для записи и выполнения",
     "PE 可执行区段熵较高，可能被压缩或加壳": "Высокая энтропия исполняемой секции PE (возможна упаковка)",
     "CourseScanner | 反恶意软件实验": "CourseScanner | Лаборатория антивирусной защиты",
@@ -115,6 +132,7 @@ RU = {
     "此项没有有效扫描结果。": "Для этого элемента нет результата проверки.",
     "演示失败": "Ошибка демонстрации",
     "启动失败": "Ошибка запуска",
+    "演示样本缺失：{names}": "Отсутствуют демонстрационные файлы: {names}",
     "无法处置": "Действие недоступно",
     "请选择签名命中或可疑的文件。": "Выберите подозрительный файл или совпадение с сигнатурой.",
     "隔离": "Карантин",
@@ -137,6 +155,12 @@ def data_directory():
     return Path(__file__).resolve().parents[1] / "data"
 
 
+def sample_directory():
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent / "demo-samples"
+    return Path(__file__).resolve().parents[1] / "demo-samples"
+
+
 def enable_high_dpi():
     if os.name == "nt":
         import ctypes
@@ -154,7 +178,6 @@ class App:
         self.root = root
         self.data = data.resolve()
         self.data.mkdir(parents=True, exist_ok=True)
-        self.demo_root = self.data / "demo"
         self.scanner = Scanner(store if store is not None else SignatureDB(self.data / "signatures.sqlite3"))
         self.vault = Vault(self.data / "vault")
         self.events = queue.Queue(maxsize=256)
@@ -214,6 +237,7 @@ class App:
         self.menu = tk.Menu(root, tearoff=False, font=default)
         self.menu.add_command(command=self.open_location)
         self.table.bind("<Button-3>", self.context_menu)
+        self.table.bind("<Double-1>", self.evidence_double_click)
         self.tabs.bind("<<NotebookTabChanged>>", lambda _: self.update_detail())
         self.detail_label = ttk.Label(frame, textvariable=self.detail, wraplength=max(300, width-self.px(32)))
         self.detail_label.pack(anchor="w", fill="x", pady=self.px(6))
@@ -307,7 +331,7 @@ class App:
             if selected:
                 self.start_folder(Path(selected))
 
-    def start_folder(self, path):
+    def start_folder(self, path, *, scanner=None):
         def files():
             def fail(error):
                 raise error
@@ -327,23 +351,36 @@ class App:
                         allowed.append(name)
                 dirs[:] = sorted(allowed)
                 yield from (Path(folder, name) for name in sorted(names))
-        self.start(files())
+        self.start(files(), scanner=scanner)
 
     def private(self, path):
         resolved = path.resolve()
-        # The app's database, vault and runtime aren't scan targets; the demo is.
-        return resolved.is_relative_to(self.data) and not resolved.is_relative_to(self.demo_root)
+        # The app's database and vault aren't scan targets; demo samples are external.
+        return resolved.is_relative_to(self.data)
 
     def demo(self):
-        if not self.busy:
-            try:
-                self.demo_root.mkdir(exist_ok=True)
-                base = Path(tempfile.mkdtemp(prefix="run-", dir=self.demo_root))
-                folder = base / "samples"
-                make_demo(folder)
-                self.start_folder(folder)
-            except OSError as exc:
-                messagebox.showerror(self.tr("演示失败"), str(exc), parent=self.root)
+        if self.busy:
+            return
+        folder = sample_directory()
+        names = (
+            "01-real-signature-eicar.com",
+            "02-real-yara-agenttesla.txt",
+            "03-report.pdf.exe",
+            "04-normal.txt",
+        )
+        paths = [folder / name for name in names]
+        missing = [path.name for path in paths if not path.is_file()]
+        if not missing:
+            self.start(paths)
+            return
+        try:
+            self.demo_root = self.data / "demo"
+            self.demo_root.mkdir(exist_ok=True)
+            base = Path(tempfile.mkdtemp(prefix="run-", dir=self.demo_root))
+            scanner, paths = create_safe_demo(base)
+            self.start(paths, scanner=scanner, demo_folder=base / "samples")
+        except (OSError, ValueError, sqlite3.Error, yara.Error) as exc:
+            messagebox.showerror(self.tr("演示失败"), str(exc), parent=self.root)
 
     def clear(self, announce=True):
         if self.busy:
@@ -365,9 +402,10 @@ class App:
         self.cancel.set()
         self.root.destroy()
 
-    def start(self, paths):
+    def start(self, paths, *, scanner=None, demo_folder=None):
         if self.busy:
             return
+        active_scanner = self.scanner if scanner is None else scanner
         self.batch_count = 0
         self.batch_errors = 0
         self.cancel.clear()
@@ -392,8 +430,8 @@ class App:
                     if path is None or self.cancel.is_set():
                         break
                     try:
-                        if not self.private(path):
-                            send(("row", path, self.scanner.scan(path), ""))
+                        if (demo_folder is not None and path.resolve().parent == demo_folder.resolve()) or not self.private(path):
+                            send(("row", path, active_scanner.scan(path), ""))
                     except Exception as exc:
                         send(("row", path, None, str(exc)))
             except Exception as exc:
@@ -408,7 +446,7 @@ class App:
 
     def row_values(self, path, result, error):
         return (path.name if path else self.tr("扫描目录"),
-                self.tr(result.verdict if result else "未扫描"),
+                self.tr(result.display_verdict if result else "未扫描"),
                 (self.reasons(result.details) or "—") if result else self.tr(error))
 
     def poll(self):
@@ -434,6 +472,56 @@ class App:
                 if not self.cancel.is_set():
                     self.set_status("正在扫描… 已处理 {count} 项", count=self.batch_count)
         self.root.after(40, self.poll)
+
+    def evidence_double_click(self, event):
+        if self.table.identify_region(event.x, event.y) != "cell":
+            return
+        if self.table.identify_column(event.x) != "#3":
+            return
+        row = self.table.identify_row(event.y)
+        _, result, error = self.rows.get(row, (None, None, ""))
+        if result is not None:
+            self.show_evidence(result)
+            return "break"
+
+    def evidence_text(self, result):
+        t = self.tr
+        lines = [f"{t('文件')}: {result.path}", f"{t('结论')}: {t(result.display_verdict)}",
+                 f"SHA-256: {result.digest}"]
+        for source, name in result.hash_records:
+            lines += ["", f"{t('命中记录')}: SQLite / signature_feeds",
+                      f"{t('来源')}: {source}", f"{t('签名名称')}: {name}"]
+            if "eicar" in name.casefold():
+                lines.append(t("EICAR 是标准测试文件，命中不代表存在真实病毒。"))
+        for item in result.rules:
+            source = t("启发式线索") if item.heuristic else ("Demo" if result.demonstration else "Elastic Security")
+            lines += ["", f"YARA {t('规则')}: {item.name}", f"{t('来源')}: {source}",
+                      f"{t('规则位置')}: {item.path}:{item.line}", "", item.text]
+        if result.clues:
+            lines += ["", t("启发式线索") + ":"] + [f"• {t(clue)}" for clue in result.clues]
+        if not (result.hash_records or result.rules or result.clues):
+            lines += ["", t("没有匹配的签名或启发式线索。")]
+        return "\n".join(lines)
+
+    def show_evidence(self, result):
+        window = tk.Toplevel(self.root)
+        window.title(self.tr("检测详情（只读）"))
+        window.transient(self.root)
+        window.geometry(f"{self.px(720)}x{self.px(520)}")
+        body = ttk.Frame(window, padding=self.px(10))
+        body.pack(fill="both", expand=True)
+        body.columnconfigure(0, weight=1)
+        body.rowconfigure(0, weight=1)
+        content = tk.Text(body, wrap="word", padx=8, pady=8)
+        scroll = ttk.Scrollbar(body, command=content.yview)
+        content.configure(yscrollcommand=scroll.set)
+        content.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+        content.insert("1.0", self.evidence_text(result))
+        content.configure(state="disabled")
+        ttk.Button(body, text=self.tr("关闭"), command=window.destroy).grid(row=1, column=0, sticky="e", pady=(8, 0))
+        window.bind("<Escape>", lambda _: window.destroy())
+        return window
 
     def scan_detail(self):
         selection = self.table.selection()

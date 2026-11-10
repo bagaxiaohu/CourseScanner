@@ -1,5 +1,25 @@
 # Changelog / 更新日志 / Журнал изменений
 
+# v2.3.0
+
+## 中文
+- 双击「检测依据」打开只读详情：完整 SHA-256、SQLite 记录、YARA 规则名及原文、启发式原因。
+- 保留普通扫描的 13 条 Elastic 规则和 ClamAV 签名；没有外部样本时，独立无害演示分别展示哈希和 YARA 命中。
+- 主程序 ZIP 含 ClamAV 库，不需要 Python 或 MySQL。可选样本 ZIP 含标准 EICAR 和三份无害文本；将其中的 demo-samples 放到 EXE 旁即可演示导入规则。不要运行这些文件；系统防护可能先拦截 EICAR。
+- 中英文开发文档记录了正式版本及本地迭代，并包含架构、算法、UML 和界面截图。
+
+## English
+- Double-click Evidence for read-only SHA-256, SQLite records, YARA rule names and source text, and heuristic reasons.
+- Normal scans retain 13 Elastic rules and ClamAV signatures. When external fixtures are absent, a separate harmless demo shows independent hash and YARA matches.
+- The main ZIP includes the ClamAV database and needs no Python or MySQL. The optional fixture ZIP contains standard EICAR and three harmless text files. Place its demo-samples folder beside the EXE to demonstrate imported matches. Do not run the fixtures; endpoint protection may intercept EICAR.
+- The Chinese and English reports document published and local versions, architecture, algorithms, UML and GUI screenshots.
+
+## Русский
+- Двойной щелчок по столбцу «Признаки» открывает сведения только для чтения: SHA-256, записи SQLite, название и текст правила YARA, причины эвристического предупреждения.
+- Обычная проверка сохраняет 13 правил Elastic и сигнатуры ClamAV. Без внешних образцов безопасная демонстрация отдельно показывает совпадения по хешу и YARA.
+- Основной ZIP содержит базу ClamAV; Python и MySQL не нужны. Дополнительный архив содержит стандартный EICAR и три безвредных текстовых файла. Поместите папку demo-samples рядом с EXE. Не запускайте образцы: антивирус может перехватить EICAR.
+- Отчёты на китайском и английском описывают опубликованные версии и локальные этапы, архитектуру, алгоритмы, UML и интерфейс.
+
 # v2.2.0
 
 ## 中文

@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scanner.engine import DEMO, LIMIT, Scanner, SignatureDB, make_demo
+from scanner.engine import LIMIT, Scanner, SignatureDB, make_demo, sha
 from scanner.vault import Vault
 
 
@@ -13,23 +13,27 @@ class ScannerTests(unittest.TestCase):
         home = Path(temp.name)
         self.files = home / "samples"
         make_demo(self.files)
-        self.scan = Scanner(SignatureDB(home / "signatures.sqlite3")).scan
+        self.db = SignatureDB(home / "signatures.sqlite3")
+        self.scan = Scanner(self.db).scan
         self.vault = Vault(home / "vault")
         self.original, self.variant, self.fake, self.normal = sorted(self.files.iterdir())
+        self.original_bytes = self.original.read_bytes()
+        # Isolated unit-test database only; these rows are never distributed.
+        self.db.import_rows([(sha(p.read_bytes()), "Fixture", "Harmless") for p in (self.original, self.variant)])
 
-    def test_exact_and_content(self):
+    def test_imported_hash(self):
         r = self.scan(self.original)
-        self.assertEqual(r.signature, "Course.Demo.Exact")
-        self.assertEqual(r.yara_matches, ("Course_Demo_Logical",))
+        self.assertEqual(r.signature, "Fixture: Harmless")
+        self.assertEqual(r.yara_matches, ())
 
-    def test_variant_only_yara(self):
-        r = self.scan(self.variant)
-        self.assertIsNone(r.signature)
-        self.assertEqual(r.yara_matches, ("Course_Demo_Logical",))
+    def test_legacy_demo_not_detected(self):
+        self.normal.write_bytes(b"COURSE_DEMO_FAMILY_2026\nCOURSE_DEMO_FEATURE_ALPHA\n")
+        self.assertEqual(self.scan(self.normal).verdict, "未发现威胁")
 
-    def test_yara_requires_both_markers(self):
-        self.normal.write_bytes(DEMO.splitlines()[0])
-        self.assertEqual(self.scan(self.normal).yara_matches, ())
+    def test_eicar_hash_is_detected(self):
+        digest = "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"
+        self.db.import_rows([(digest, "ClamAV", "Eicar-Test-Signature")])
+        self.assertEqual(self.db.lookup(digest), "ClamAV: Eicar-Test-Signature")
 
     def test_double_extension(self):
         self.assertEqual(self.scan(self.fake).verdict, "可疑")
@@ -55,7 +59,7 @@ class ScannerTests(unittest.TestCase):
         self.assertFalse(self.original.exists())
         self.assertEqual(list(self.vault.records()), [(item, str(self.original), r.details)])
         self.assertEqual(self.vault.restore(item), self.original)
-        self.assertEqual(self.original.read_bytes(), DEMO)
+        self.assertEqual(self.original.read_bytes(), self.original_bytes)
         self.assertFalse(item.exists())
 
     def test_restore_never_overwrites(self):
