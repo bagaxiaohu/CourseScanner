@@ -1,0 +1,159 @@
+[
+  {
+    "heading": "Implementation tools and scope",
+    "body": [
+      [
+        "p",
+        "CourseScanner is a Python desktop application that demonstrates a complete scan-to-remediation workflow. It identifies an unchanged fixture by its SHA-256 fingerprint, recognizes a modified fixture with a YARA content rule, and reports suspicious file properties separately. Every destructive action requires confirmation."
+      ],
+      [
+        "h",
+        "Technology choices"
+      ],
+      [
+        "table",
+        [
+          [
+            "Tool",
+            "Role in the application"
+          ],
+          [
+            "Python / hashlib",
+            "Application logic and SHA-256 computation"
+          ],
+          [
+            "SQLite / sqlite3",
+            "Local signature database, queried by a parameterized SHA-256 key"
+          ],
+          [
+            "yara-python",
+            "Compile and evaluate one logical content signature"
+          ],
+          [
+            "Tkinter / ttk",
+            "Desktop interface, scan results, and quarantine controls"
+          ],
+          [
+            "threading / queue",
+            "Scan off the UI thread and return results through a queue"
+          ],
+          [
+            "zipfile / unittest",
+            "Store quarantine packages and verify core behavior"
+          ]
+        ]
+      ],
+      [
+        "h",
+        "Scope"
+      ],
+      [
+        "p",
+        "The application scans selected files or directories locally. It does not execute samples, monitor running processes, or provide real-time protection. Its bundled hash and YARA rule are designed for harmless classroom fixtures, not production malware identification."
+      ]
+    ]
+  },
+  {
+    "heading": "Architecture and scan algorithm",
+    "body": [
+      [
+        "img",
+        "components.png",
+        "Figure 1. UML component diagram showing module dependencies."
+      ],
+      [
+        "h",
+        "Static detection algorithm"
+      ],
+      [
+        "p",
+        "1. Read a stable snapshot of a regular file, with a 32 MiB limit. Read failures, oversize files, or YARA timeouts are reported as not scanned."
+      ],
+      [
+        "p",
+        "2. Compute SHA-256 over the snapshot and query SQLite. The signatures table stores sha256 as the primary key and name as the display label."
+      ],
+      [
+        "p",
+        "3. Evaluate Course_Demo_Logical against the same bytes. Both demo strings must be present. The fixture variant appends an unrelated line, so it no longer matches the exact hash but still matches this content rule."
+      ],
+      [
+        "p",
+        "4. Independently check a document-like extension followed by an executable extension, and PE header markers under a document or image extension. Any signature match takes precedence; otherwise a heuristic finding means Suspicious. No finding means No threat detected, not Safe."
+      ]
+    ]
+  },
+  {
+    "heading": "File quarantine and removal",
+    "body": [
+      [
+        "img",
+        "sequence.png",
+        "Figure 2. UML sequence diagram from scanning to confirmed quarantine."
+      ],
+      [
+        "h",
+        "Disposition algorithm"
+      ],
+      [
+        "p",
+        "Quarantine re-reads the selected file and verifies the scanned hash. It writes a uniquely named quarantine package containing payload.bin and record.json (original path, hash, and evidence), flushes it, rechecks the source, and removes the original path. On a source-removal error, it removes the new package."
+      ],
+      [
+        "p",
+        "Restore verifies the payload hash and creates the original file exclusively, so it cannot overwrite another file. The package is removed after a successful write. Delete removes the selected original or quarantine entry after confirmation; it does not use the recycle bin."
+      ],
+      [
+        "p",
+        "These are course-level file operations. A local archive is not a sandbox, and the check and unlink are not a single atomic operation. Do not use the app as protection against concurrently active malware."
+      ]
+    ]
+  },
+  {
+    "heading": "Graphical interface and verification",
+    "body": [
+      [
+        "img",
+        "gui.png",
+        "Figure 3. Actual Tkinter interface after scanning the four harmless demonstration files."
+      ],
+      [
+        "p",
+        "The scan tab selects files, directories, or the built-in demo. It displays each verdict and its evidence, with the full path available on selection. The quarantine tab lists packages, supports restoration to the original path, and can permanently remove a selected package."
+      ],
+      [
+        "table",
+        [
+          [
+            "Fixture",
+            "Observed detection"
+          ],
+          [
+            "01-original.txt",
+            "SHA-256 and YARA"
+          ],
+          [
+            "02-variant.txt",
+            "YARA only"
+          ],
+          [
+            "03-report.pdf.exe",
+            "Suspicious double extension"
+          ],
+          [
+            "04-normal.txt",
+            "No threat detected"
+          ]
+        ]
+      ],
+      [
+        "p",
+        "Verification on Windows: 11 automated tests passed. A Tkinter smoke test verified four result rows, cancellation of deletion, confirmed quarantine, restoration, and confirmed deletion."
+      ],
+      [
+        "p",
+        "References: ClamAV Signatures (docs.clamav.net/manual/Signatures.html); YARA Python bindings (github.com/VirusTotal/yara-python)."
+      ]
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+/.venv/
+/data/
+/dist/
+/build/
+__pycache__/
+*.pyc
+*.exe
+*.sqlite3*
+*.quarantine
+~$*
+.env
