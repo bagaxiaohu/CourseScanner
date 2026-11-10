@@ -79,6 +79,7 @@ def main():
 
             original_scan = app.scanner.scan
             for mode in ("files", "folder"):
+                app.clear()
                 entered, release = Event(), Event()
                 calls = []
 

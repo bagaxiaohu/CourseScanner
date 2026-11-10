@@ -14,7 +14,7 @@ from .vault import Vault
 EN = {
     "CourseScanner | 反恶意软件实验": "CourseScanner | Anti-malware Lab",
     "CourseScanner 文件扫描器": "CourseScanner File Scanner",
-    "本地静态检测 · 不运行样本 · 不自动处置": "Local static scanning · Never runs samples · No automatic actions",
+    "本地静态检测 · 不运行样本": "Local static scanning · Never runs samples",
     "扫描结果": "Scan Results", "隔离区": "Quarantine",
     "扫描文件": "Scan Files", "扫描文件夹": "Scan Folder", "运行无害演示": "Run Demo",
     "停止扫描": "Stop Scan", "清空结果": "Clear Results",
@@ -57,6 +57,73 @@ EN = {
     "执行以下操作？{action}": "Perform this action? {action}",
     "已完成：{action}": "Completed: {action}", "处置失败": "File Action Failed", "操作失败": "Action Failed",
 }
+RU = {
+    "CourseScanner | 反恶意软件实验": "CourseScanner | Лаборатория антивирусной защиты",
+    "CourseScanner 文件扫描器": "CourseScanner — сканер файлов",
+    "本地静态检测 · 不运行样本": "Локальная статическая проверка · Образцы не запускаются",
+    "扫描结果": "Результаты",
+    "隔离区": "Карантин",
+    "扫描文件": "Проверить файлы",
+    "扫描文件夹": "Проверить папку",
+    "运行无害演示": "Демонстрация",
+    "停止扫描": "Остановить",
+    "清空结果": "Очистить результаты",
+    "隔离选中项": "Поместить в карантин",
+    "永久删除选中项": "Удалить выбранный файл",
+    "刷新": "Обновить",
+    "恢复原路径": "Восстановить на прежнее место",
+    "永久删除隔离项": "Удалить из карантина",
+    "文件": "Файл",
+    "结论": "Вердикт",
+    "检测依据": "Признаки",
+    "原始路径": "Исходный путь",
+    "隔离记录": "ID карантина",
+    "打开文件所在位置": "Открыть папку файла",
+    "无法打开位置": "Не удалось открыть папку",
+    "文件所在的目录已不存在。": "Папка файла больше не существует.",
+    "选中一行可查看完整路径和理由。": "Выберите строку, чтобы увидеть полный путь и признаки.",
+    "就绪": "Готово",
+    "已清空扫描结果": "Результаты очищены",
+    "正在扫描… 已处理 {count} 项": "Проверка… Обработано: {count}",
+    "正在停止… 等待当前文件处理完成": "Остановка… Завершается проверка текущего файла",
+    "扫描结束：{count} 项，{errors} 项未扫描": "Проверка завершена: {count}, не проверено: {errors}",
+    "已停止：保留 {count} 项结果，{errors} 项未扫描": "Остановлено. В списке: {count}; не проверено в этой проверке: {errors}",
+    "签名命中": "Совпадение с сигнатурой",
+    "可疑": "Подозрительный",
+    "未发现威胁": "Угроз не обнаружено",
+    "未扫描": "Не проверен",
+    "扫描目录": "Папка проверки",
+    "文档扩展名后又跟着可执行扩展名": "Расширение документа перед исполняемым расширением",
+    "含 PE 文件头标记，但扩展名为文档或图片": "Заголовок PE при расширении документа или изображения",
+    "(隔离记录损坏)": "(Повреждённая запись карантина)",
+    "不是普通文件或属于重解析点": "Файл не является обычным или является точкой повторной обработки",
+    "超过 32 MiB，未扫描": "Больше 32 МиБ; не проверен",
+    "文件已更换": "Файл был заменён",
+    "文件在读取期间变化": "Файл изменился при чтении",
+    "只能处置已命中或判为可疑的非隔离文件": "Можно обработать только подозрительный файл или совпадение вне карантина",
+    "文件内容已改变，请重新扫描": "Содержимое изменилось. Проверьте файл снова",
+    "不是有效的隔离条目": "Недействительный элемент карантина",
+    "隔离记录过大": "Метаданные карантина слишком велики",
+    "隔离记录格式错误": "Неверный формат метаданных карантина",
+    "隔离条目超出大小限制": "Элемент карантина превышает ограничение размера",
+    "隔离内容校验失败": "Хеш файла из карантина не совпал",
+    "恢复路径不合法": "Недопустимый путь восстановления",
+    "此项没有有效扫描结果。": "Для этого элемента нет результата проверки.",
+    "演示失败": "Ошибка демонстрации",
+    "启动失败": "Ошибка запуска",
+    "无法处置": "Действие недоступно",
+    "请选择签名命中或可疑的文件。": "Выберите подозрительный файл или совпадение с сигнатурой.",
+    "隔离": "Карантин",
+    "永久删除（不进回收站）": "Удалить безвозвратно (минуя корзину)",
+    "恢复（恢复不代表文件安全）": "Восстановить (это не подтверждает безопасность файла)",
+    "确认处置": "Подтвердить действие с файлом",
+    "确认操作": "Подтвердить действие",
+    "执行以下操作？{action}": "Выполнить действие? {action}",
+    "已完成：{action}": "Выполнено: {action}",
+    "处置失败": "Ошибка обработки файла",
+    "操作失败": "Ошибка действия",
+}
+LANGUAGES = {"zh": "中文", "en": "English", "ru": "Русский"}
 COLUMNS = ("name", "status", "reason")
 
 
@@ -110,19 +177,19 @@ class App:
         width = min(self.px(1050), root.winfo_screenwidth() - self.px(55))
         height = min(self.px(630), root.winfo_screenheight() - self.px(90))
         root.geometry(f"{width}x{height}")
-        root.minsize(min(self.px(770), width), min(self.px(420), height))
+        root.minsize(min(self.px(880), width), min(self.px(420), height))
         frame = ttk.Frame(root, padding=self.px(16))
         frame.pack(fill="both", expand=True)
         top = ttk.Frame(frame)
         top.pack(fill="x")
         self.register(ttk.Label(top, font=(default.actual("family"), 19, "bold")),
                       "CourseScanner 文件扫描器").pack(side="left")
-        language = ttk.Combobox(top, values=("中文", "English"), textvariable=self.language_var,
+        language = ttk.Combobox(top, values=tuple(LANGUAGES.values()), textvariable=self.language_var,
                                 state="readonly", width=10)
         language.pack(side="right")
         language.bind("<<ComboboxSelected>>", lambda _: self.set_language(
-            "en" if self.language_var.get() == "English" else "zh"))
-        self.register(ttk.Label(frame), "本地静态检测 · 不运行样本 · 不自动处置").pack(
+            next(code for code, name in LANGUAGES.items() if name == self.language_var.get())))
+        self.register(ttk.Label(frame), "本地静态检测 · 不运行样本").pack(
             anchor="w", pady=(2, self.px(10)))
         self.tabs = ttk.Notebook(frame)
         self.tabs.pack(fill="both", expand=True)
@@ -158,7 +225,7 @@ class App:
         return round(n * self.scale)
 
     def tr(self, key, **values):
-        text = EN.get(key, key) if self.lang == "en" else key
+        text = {"en": EN, "ru": RU}.get(self.lang, {}).get(key, key)
         if "action" in values and isinstance(values["action"], tuple):
             action_key, suffix = values["action"]
             values["action"] = self.tr(action_key) + suffix
@@ -174,7 +241,7 @@ class App:
 
     def set_language(self, language):
         self.lang = language
-        self.language_var.set("English" if language == "en" else "中文")
+        self.language_var.set(LANGUAGES[language])
         self.root.title(self.tr("CourseScanner | 反恶意软件实验"))
         for widget, key in self.texts:
             widget.configure(text=self.tr(key))
@@ -297,7 +364,8 @@ class App:
     def start(self, paths):
         if self.busy:
             return
-        self.clear(announce=False)
+        self.batch_count = 0
+        self.batch_errors = 0
         self.cancel.clear()
         self.busy = True
         self.controls()
@@ -331,7 +399,7 @@ class App:
         Thread(target=work, daemon=True).start()
 
     def reasons(self, value):
-        return ("; " if self.lang == "en" else "；").join(
+        return ("; " if self.lang != "zh" else "；").join(
             self.tr(part) for part in value.split("；"))
 
     def row_values(self, path, result, error):
@@ -347,18 +415,20 @@ class App:
                 break
             if tag == "done":
                 self.busy = False
-                errors = sum(r is None for r in self.results.values())
+                errors = self.batch_errors
                 key = ("已停止：保留 {count} 项结果，{errors} 项未扫描" if args[0]
                        else "扫描结束：{count} 项，{errors} 项未扫描")
-                self.set_status(key, count=len(self.results), errors=errors)
+                self.set_status(key, count=len(self.results) if args[0] else self.batch_count, errors=errors)
                 self.controls()
             else:
                 path, result, error = args
                 row = self.table.insert("", "end", values=self.row_values(path, result, error))
                 self.results[row] = result
                 self.rows[row] = path, result, error
+                self.batch_count += 1
+                self.batch_errors += result is None
                 if not self.cancel.is_set():
-                    self.set_status("正在扫描… 已处理 {count} 项", count=len(self.results))
+                    self.set_status("正在扫描… 已处理 {count} 项", count=self.batch_count)
         self.root.after(40, self.poll)
 
     def scan_detail(self):
