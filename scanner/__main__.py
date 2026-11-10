@@ -12,6 +12,8 @@ from .vault import Vault
 
 
 EN = {
+    "PE 含同时可写和可执行的区段": "PE section is writable and executable",
+    "PE 可执行区段熵较高，可能被压缩或加壳": "High entropy in a PE executable section (possible packing)",
     "CourseScanner | 反恶意软件实验": "CourseScanner | Anti-malware Lab",
     "CourseScanner 文件扫描器": "CourseScanner File Scanner",
     "本地静态检测 · 不运行样本": "Local static scanning · Never runs samples",
@@ -58,6 +60,8 @@ EN = {
     "已完成：{action}": "Completed: {action}", "处置失败": "File Action Failed", "操作失败": "Action Failed",
 }
 RU = {
+    "PE 含同时可写和可执行的区段": "Секция PE доступна для записи и выполнения",
+    "PE 可执行区段熵较高，可能被压缩或加壳": "Высокая энтропия исполняемой секции PE (возможна упаковка)",
     "CourseScanner | 反恶意软件实验": "CourseScanner | Лаборатория антивирусной защиты",
     "CourseScanner 文件扫描器": "CourseScanner — сканер файлов",
     "本地静态检测 · 不运行样本": "Локальная статическая проверка · Образцы не запускаются",
@@ -146,12 +150,12 @@ def enable_high_dpi():
 
 
 class App:
-    def __init__(self, root, data):
+    def __init__(self, root, data, store=None):
         self.root = root
         self.data = data.resolve()
         self.data.mkdir(parents=True, exist_ok=True)
         self.demo_root = self.data / "demo"
-        self.scanner = Scanner(SignatureDB(self.data / "signatures.sqlite3"))
+        self.scanner = Scanner(store if store is not None else SignatureDB(self.data / "signatures.sqlite3"))
         self.vault = Vault(self.data / "vault")
         self.events = queue.Queue(maxsize=256)
         self.cancel = Event()

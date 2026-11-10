@@ -1,0 +1,30 @@
+{
+  "repository": "elastic/protections-artifacts",
+  "commit": "a87715d87a2babd51b37ff6c55f104fe7e567911",
+  "files": [
+    {
+      "path": "yara/rules/Windows_Ransomware_BlackBasta.yar",
+      "sha256": "e27cc291bbfb0f6c7245de01dc6bf61821e61e040c2ff445452b29b5a5b1fb8a"
+    },
+    {
+      "path": "yara/rules/Windows_Ransomware_Lockbit.yar",
+      "sha256": "3043024676697f2dbf8d7fdf28de3f1f296f6ac92c5ef439798131f9cb42c15f"
+    },
+    {
+      "path": "yara/rules/Windows_Trojan_AgentTesla.yar",
+      "sha256": "c5dbdc85f688b311186751c58c28e7c63429f750ac18d302f63a988d5bcffa1b"
+    },
+    {
+      "path": "yara/rules/Windows_Trojan_Asyncrat.yar",
+      "sha256": "9970b8e4c475fff7ab21149bf9e5647f3513e35d67d7441f105f93c16acb9803"
+    },
+    {
+      "path": "yara/rules/Windows_Trojan_Remcos.yar",
+      "sha256": "7cac68c1c0e1002ce361f51ca4c300904761474690c186f83c667ce35a3b234e"
+    },
+    {
+      "path": "LICENSE.txt",
+      "sha256": "48255018b41fc0e965b1115af7e6779bc218bb8a6747d561da800d5022622aa2"
+    }
+  ]
+}

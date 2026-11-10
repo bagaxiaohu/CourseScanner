@@ -6,6 +6,7 @@ import os
 import sqlite3
 import stat
 import yara
+from .static_checks import pe_section_findings
 
 LIMIT = 32 * 1024 * 1024
 DEMO = b"COURSE_DEMO_FAMILY_2026\nCOURSE_DEMO_FEATURE_ALPHA\n"
@@ -44,14 +45,45 @@ def snapshot(path):
 class SignatureDB:
     def __init__(self, path):
         self.path = path
-        with closing(sqlite3.connect(path)) as db, db:
+        with closing(sqlite3.connect(path, timeout=10)) as db, db:
             db.execute("CREATE TABLE IF NOT EXISTS signatures (sha256 TEXT PRIMARY KEY, name TEXT NOT NULL)")
             db.execute("INSERT OR IGNORE INTO signatures VALUES (?, ?)", (sha(DEMO), "Course.Demo.Exact"))
+            db.execute("""CREATE TABLE IF NOT EXISTS signature_feeds (
+                sha256 BLOB NOT NULL CHECK(length(sha256) = 32),
+                source TEXT NOT NULL,
+                name TEXT NOT NULL,
+                PRIMARY KEY (sha256, source)
+            ) WITHOUT ROWID""")
 
     def lookup(self, digest):
-        with closing(sqlite3.connect(self.path)) as db:
-            row = db.execute("SELECT name FROM signatures WHERE sha256 = ?", (digest,)).fetchone()
-        return row[0] if row else None
+        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+            demo = db.execute("SELECT name FROM signatures WHERE sha256 = ?", (digest,)).fetchone()
+            feeds = db.execute(
+                "SELECT source, name FROM signature_feeds WHERE sha256 = ? ORDER BY source",
+                (bytes.fromhex(digest),),
+            ).fetchall()
+        labels = [demo[0]] if demo else []
+        labels.extend(f"{source}: {name}" for source, name in feeds)
+        return ", ".join(labels) or None
+
+    def import_rows(self, rows):
+        sql = """INSERT INTO signature_feeds (sha256, source, name) VALUES (?, ?, ?)
+                 ON CONFLICT (sha256, source) DO UPDATE SET name = excluded.name"""
+        count = 0
+        batch = []
+        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+            for digest, source, name in rows:
+                batch.append((bytes.fromhex(digest), source, name))
+                if len(batch) >= 1000:
+                    db.executemany(sql, batch)
+                    count += len(batch)
+                    batch.clear()
+            if batch:
+                db.executemany(sql, batch)
+                count += len(batch)
+            if not count:
+                raise ValueError("No SHA-256 signatures found; nothing imported.")
+        return count
 
 
 def heuristics(path, data):
@@ -63,7 +95,7 @@ def heuristics(path, data):
         offset = int.from_bytes(data[60:64], "little")
         if offset >= 64 and data[offset:offset + 4] == b"PE\x00\x00":
             findings.append("含 PE 文件头标记，但扩展名为文档或图片")
-    return tuple(findings)
+    return tuple(findings) + pe_section_findings(data)
 
 
 @dataclass(frozen=True)
@@ -89,14 +121,19 @@ class Result:
 class Scanner:
     def __init__(self, db):
         self.db = db
-        self.rules = yara.compile(filepath=str(Path(__file__).with_name("course_demo.yar")))
+        rules_root = Path(__file__).parent
+        sources = {"demo": str(rules_root / "course_demo.yar")}
+        sources.update({f"elastic_{rule.stem}": str(rule)
+                        for rule in sorted((rules_root / "elastic_yara").glob("*.yar"))})
+        self.rules = yara.compile(filepaths=sources, includes=False)
 
     def scan(self, path):
         path = Path(os.path.abspath(path))
         data = snapshot(path)
         digest = sha(data)
         return Result(path, digest, self.db.lookup(digest),
-                      tuple(m.rule for m in self.rules.match(data=data, timeout=5)),
+                      tuple(m.rule if m.namespace == "demo" else f"Elastic/{m.rule}"
+                            for m in self.rules.match(data=data, timeout=5)),
                       heuristics(path, data))
 
 

@@ -2,6 +2,25 @@
 
 Python 反恶意软件实验课 B 版：手动选择文件或文件夹，在后台执行静态检测；扫描结果可经确认隔离、恢复或永久删除。
 
+## 最新版本 / Latest release / Последний выпуск
+
+[Windows x64 ZIP with ClamAV signatures](https://github.com/bagaxiaohu/CourseScanner/releases/tag/v2.2.0) · [中英俄三语更新说明](CHANGELOG.md)
+
+完整解压后双击 EXE；保留旁边的 data 目录。 / Extract the entire archive and launch the EXE. / Распакуйте весь архив и запустите EXE.
+
+最新版开发说明：[中文](docs/CourseScanner_v2.2.0_Development_ZH.docx) · [English](docs/CourseScanner_v2.2.0_Development_EN.docx)。
+
+## 可选签名导入 / Optional signature import / Импорт сигнатур
+
+从官方来源取得纯文本哈希表后，在源码目录使用下列命令。 / Obtain the hash text file from the provider and run from the source checkout. / Получите текстовый список хешей у поставщика и запустите команду из каталога исходного кода.
+
+```powershell
+.\.venv\Scripts\python.exe -m scanner.import_signatures MalwareBazaar "PATH_TO_SHA256_TEXT"
+.\.venv\Scripts\python.exe -m scanner.import_signatures ClamAV "PATH_TO_DAILY_HSB"
+```
+
+The default database is the checkout's data/signatures.sqlite3. To import into the portable EXE's database instead, add `--database "PATH_TO_EXE_FOLDER/data/signatures.sqlite3"` while the app is closed. MalwareBazaar data and credentials are not published. Elastic rules retain their upstream license in [scanner/elastic_yara/LICENSE.txt](scanner/elastic_yara/LICENSE.txt).
+
 ## 在 Windows 启动
 
 在项目根目录打开 PowerShell（需要安装含 Tkinter 的 Python 3.10 或更新版本）：
