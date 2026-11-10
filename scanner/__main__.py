@@ -1,4 +1,6 @@
 import os
+from contextlib import closing
+from zipfile import ZipFile, BadZipFile
 from pathlib import Path
 import queue
 import tempfile
@@ -14,13 +16,14 @@ from .vault import Vault
 
 
 EN = {
+    "内置演示样本只读。": "Built-in demo files are read-only.",
     "演示命中": "Demo match",
     "检测详情（只读）": "Detection details (read-only)", "命中记录": "Matched record",
     "来源": "Source", "签名名称": "Signature name", "规则位置": "Rule location",
     "规则": "Rule", "启发式线索": "Heuristic clues", "关闭": "Close",
     "没有匹配的签名或启发式线索。": "No matching signatures or heuristic clues.",
     "EICAR 是标准测试文件，命中不代表存在真实病毒。": "EICAR is a standard test file; a match does not indicate actual malware.",
-    "YARA 启发式：文档扩展名后又跟着可执行扩展名": "YARA heuristic: document extension followed by an executable extension",
+    "文件名启发式：文档扩展名后紧跟可执行扩展名": "Filename heuristic: document extension followed by an executable extension",
     "PE 含同时可写和可执行的区段": "PE section is writable and executable",
     "PE 可执行区段熵较高，可能被压缩或加壳": "High entropy in a PE executable section (possible packing)",
     "CourseScanner | 反恶意软件实验": "CourseScanner | Anti-malware Lab",
@@ -70,13 +73,14 @@ EN = {
     "已完成：{action}": "Completed: {action}", "处置失败": "File Action Failed", "操作失败": "Action Failed",
 }
 RU = {
+    "内置演示样本只读。": "Встроенные демонстрационные файлы доступны только для чтения.",
     "演示命中": "Демонстрационное совпадение",
     "检测详情（只读）": "Подробности обнаружения (только чтение)", "命中记录": "Найденная запись",
     "来源": "Источник", "签名名称": "Название сигнатуры", "规则位置": "Расположение правила",
     "规则": "Правило", "启发式线索": "Эвристические признаки", "关闭": "Закрыть",
     "没有匹配的签名或启发式线索。": "Совпадений с сигнатурами и эвристических признаков нет.",
     "EICAR 是标准测试文件，命中不代表存在真实病毒。": "EICAR — стандартный тестовый файл, а не вредоносная программа.",
-    "YARA 启发式：文档扩展名后又跟着可执行扩展名": "Эвристика YARA: расширение документа перед исполняемым расширением",
+    "文件名启发式：文档扩展名后紧跟可执行扩展名": "Эвристика имени файла: расширение документа перед исполняемым расширением",
     "PE 含同时可写和可执行的区段": "Секция PE доступна для записи и выполнения",
     "PE 可执行区段熵较高，可能被压缩或加壳": "Высокая энтропия исполняемой секции PE (возможна упаковка)",
     "CourseScanner | 反恶意软件实验": "CourseScanner | Лаборатория антивирусной защиты",
@@ -161,6 +165,21 @@ def sample_directory():
     return Path(__file__).resolve().parents[1] / "demo-samples"
 
 
+def bundled_directory():
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS) / "course-resources"
+    return None
+
+
+def seed_local_signatures(store, bundled):
+    # Add the release feed without replacing locally imported rows.
+    source = bundled / "data" / "signatures.sqlite3"
+    with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as incoming:
+        rows = incoming.execute("SELECT sha256, source, name FROM signature_feeds").fetchall()
+    with closing(sqlite3.connect(store.path, timeout=10)) as target, target:
+        target.executemany("INSERT OR IGNORE INTO signature_feeds VALUES (?, ?, ?)", rows)
+
+
 def enable_high_dpi():
     if os.name == "nt":
         import ctypes
@@ -178,7 +197,11 @@ class App:
         self.root = root
         self.data = data.resolve()
         self.data.mkdir(parents=True, exist_ok=True)
-        self.scanner = Scanner(store if store is not None else SignatureDB(self.data / "signatures.sqlite3"))
+        self.bundled = bundled_directory()
+        active_store = store if store is not None else SignatureDB(self.data / "signatures.sqlite3")
+        if self.bundled is not None and store is None:
+            seed_local_signatures(active_store, self.bundled)
+        self.scanner = Scanner(active_store)
         self.vault = Vault(self.data / "vault")
         self.events = queue.Queue(maxsize=256)
         self.cancel = Event()
@@ -355,13 +378,13 @@ class App:
 
     def private(self, path):
         resolved = path.resolve()
-        # The app's database and vault aren't scan targets; demo samples are external.
-        return resolved.is_relative_to(self.data)
+        return (resolved.is_relative_to(self.data) or
+                (self.bundled is not None and resolved.is_relative_to(self.bundled)))
 
     def demo(self):
         if self.busy:
             return
-        folder = sample_directory()
+        folder = self.bundled / "demo-samples" if self.bundled is not None else sample_directory()
         names = (
             "01-real-signature-eicar.com",
             "02-real-yara-agenttesla.txt",
@@ -369,6 +392,20 @@ class App:
             "04-normal.txt",
         )
         paths = [folder / name for name in names]
+        if self.bundled is not None:
+            try:
+                # Read the official test fixture and inert text directly from the unmodified demo archive.
+                with ZipFile(self.bundled / "demo-samples.zip") as archive:
+                    members = {path: archive.getinfo(f"demo-samples/{path.name}") for path in paths}
+                    if any(info.file_size > 65536 for info in members.values()):
+                        raise ValueError("Invalid bundled demo fixture size")
+                    demo_bytes = {path: archive.read(info) for path, info in members.items()}
+                pinned = (self.bundled / "data" / "signatures.sqlite3").as_uri() + "?mode=ro"
+                self.start(paths, scanner=Scanner(SignatureDB(pinned, uri=True)),
+                           demo_folder=folder, demo_bytes=demo_bytes)
+            except (OSError, ValueError, KeyError, BadZipFile, sqlite3.Error, yara.Error) as exc:
+                messagebox.showerror(self.tr("演示失败"), str(exc), parent=self.root)
+            return
         missing = [path.name for path in paths if not path.is_file()]
         if not missing:
             self.start(paths)
@@ -402,7 +439,7 @@ class App:
         self.cancel.set()
         self.root.destroy()
 
-    def start(self, paths, *, scanner=None, demo_folder=None):
+    def start(self, paths, *, scanner=None, demo_folder=None, demo_bytes=None):
         if self.busy:
             return
         active_scanner = self.scanner if scanner is None else scanner
@@ -431,7 +468,9 @@ class App:
                         break
                     try:
                         if (demo_folder is not None and path.resolve().parent == demo_folder.resolve()) or not self.private(path):
-                            send(("row", path, active_scanner.scan(path), ""))
+                            result = (active_scanner.scan_bytes(path, demo_bytes[path])
+                                      if demo_bytes is not None else active_scanner.scan(path))
+                            send(("row", path, result, ""))
                     except Exception as exc:
                         send(("row", path, None, str(exc)))
             except Exception as exc:
@@ -494,7 +533,7 @@ class App:
             if "eicar" in name.casefold():
                 lines.append(t("EICAR 是标准测试文件，命中不代表存在真实病毒。"))
         for item in result.rules:
-            source = t("启发式线索") if item.heuristic else ("Demo" if result.demonstration else "Elastic Security")
+            source = "Demo" if result.demonstration else "Elastic Security"
             lines += ["", f"YARA {t('规则')}: {item.name}", f"{t('来源')}: {source}",
                       f"{t('规则位置')}: {item.path}:{item.line}", "", item.text]
         if result.clues:
@@ -591,6 +630,9 @@ class App:
             return
         row = self.table.selection()[0]
         result = self.results.get(row)
+        if result and self.bundled is not None and result.path.resolve().is_relative_to(self.bundled):
+            messagebox.showinfo(self.tr("无法处置"), self.tr("内置演示样本只读。"), parent=self.root)
+            return
         if not result or result.verdict == "未发现威胁":
             messagebox.showinfo(self.tr("无法处置"), self.tr("请选择签名命中或可疑的文件。"), parent=self.root)
             return

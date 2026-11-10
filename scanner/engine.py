@@ -11,7 +11,12 @@ from .static_checks import pe_section_findings
 
 LIMIT = 32 * 1024 * 1024
 DOC = {".pdf", ".doc", ".docx", ".txt", ".jpg", ".png", ".xlsx"}
-DOUBLE_EXTENSION = "YARA 启发式：文档扩展名后又跟着可执行扩展名"
+DOUBLE_EXTENSION = "文件名启发式：文档扩展名后紧跟可执行扩展名"
+
+
+_DOUBLE_EXTENSION_PATTERN = re.compile(
+    r".+\.(pdf|doc|docx|txt|jpg|png|xlsx)\.(exe|scr|com|bat|cmd|ps1|vbs|js|lnk)", re.ASCII | re.IGNORECASE
+)
 
 
 def sha(data):
@@ -43,8 +48,11 @@ def snapshot(path):
 
 
 class SignatureDB:
-    def __init__(self, path):
+    def __init__(self, path, *, uri=False):
         self.path = path
+        self.uri = uri
+        if uri:
+            return  # Open the pinned release database read-only on lookup.
         with closing(sqlite3.connect(path, timeout=10)) as db, db:
             db.execute("""CREATE TABLE IF NOT EXISTS signature_feeds (
                 sha256 BLOB NOT NULL CHECK(length(sha256) = 32),
@@ -54,7 +62,7 @@ class SignatureDB:
             ) WITHOUT ROWID""")
 
     def lookup_rows(self, digest):
-        with closing(sqlite3.connect(self.path, timeout=10)) as db:
+        with closing(sqlite3.connect(self.path, timeout=10, uri=self.uri)) as db:
             return tuple(db.execute(
                 "SELECT source, name FROM signature_feeds WHERE sha256 = ? ORDER BY source",
                 (bytes.fromhex(digest),),
@@ -68,7 +76,7 @@ class SignatureDB:
                  ON CONFLICT (sha256, source) DO UPDATE SET name = excluded.name"""
         count = 0
         batch = []
-        with closing(sqlite3.connect(self.path, timeout=10)) as db, db:
+        with closing(sqlite3.connect(self.path, timeout=10, uri=self.uri)) as db, db:
             for digest, source, name in rows:
                 batch.append((bytes.fromhex(digest), source, name))
                 if len(batch) >= 1000:
@@ -86,6 +94,8 @@ class SignatureDB:
 def heuristics(path, data):
     suffix = [s.lower() for s in path.suffixes]
     findings = []
+    if _DOUBLE_EXTENSION_PATTERN.fullmatch(path.name):
+        findings.append(DOUBLE_EXTENSION)
     if suffix and suffix[-1] in DOC and len(data) >= 64 and data.startswith(b"MZ"):
         offset = int.from_bytes(data[60:64], "little")
         if offset >= 64 and data[offset:offset + 4] == b"PE\x00\x00":
@@ -99,7 +109,6 @@ class RuleEvidence:
     path: str
     line: int
     text: str
-    heuristic: bool
 
 
 @dataclass(frozen=True)
@@ -139,9 +148,7 @@ class Scanner:
         elastic = sorted((rules_root / "elastic_yara").glob("*.yar"))
         if not elastic and not demonstration:
             raise ValueError("Elastic YARA rules are missing; scanner not started.")
-        sources = {
-            "filename_heuristic": str(rules_root / "filename_heuristics.yar"),
-        }
+        sources = {}
         if demonstration:
             sources["demo"] = str(rules_root / "demo_rtf.yar")
         else:
@@ -153,7 +160,7 @@ class Scanner:
             for ns, filename in sources.items()
         }
         self.rules = yara.compile(sources={ns: item[1] for ns, item in self.rule_sources.items()},
-                                  externals={"filename": ""}, includes=False)
+                                  includes=False)
 
     def rule_evidence(self, namespace, name):
         path, text = self.rule_sources[namespace]
@@ -162,25 +169,24 @@ class Scanner:
             if head.group(1) == name:
                 end = headers[index + 1].start() if index + 1 < len(headers) else len(text)
                 return RuleEvidence(name, "scanner/" + path, text.count("\n", 0, head.start()) + 1,
-                                    text[head.start():end].rstrip(), namespace == "filename_heuristic")
-        return RuleEvidence(name, "scanner/" + path, 1, text, namespace == "filename_heuristic")
+                                    text[head.start():end].rstrip())
+        return RuleEvidence(name, "scanner/" + path, 1, text)
 
     def scan(self, path):
         path = Path(os.path.abspath(path))
-        data = snapshot(path)
+        return self.scan_bytes(path, snapshot(path))
+
+    def scan_bytes(self, path, data):
+        if len(data) > LIMIT:
+            raise ValueError("超过 32 MiB，未扫描")
         digest = sha(data)
-        matches = self.rules.match(data=data, externals={"filename": path.name}, timeout=5)
-        signatures, hints = [], []
-        for match in matches:
-            if match.namespace == "filename_heuristic":
-                hints.append(DOUBLE_EXTENSION)
-            else:
-                signatures.append(f"{'Demo' if self.demonstration else 'Elastic'}/{match.rule}")
+        matches = self.rules.match(data=data, timeout=5)
+        signatures = tuple(f"{'Demo' if self.demonstration else 'Elastic'}/{match.rule}" for match in matches)
         records = self.db.lookup_rows(digest)
         label = ", ".join(f"{source}: {name}" for source, name in records) or None
         evidence = tuple(self.rule_evidence(match.namespace, match.rule) for match in matches)
-        return Result(path, digest, label, tuple(signatures),
-                      tuple(hints) + heuristics(path, data), records, evidence, self.demonstration)
+        return Result(path, digest, label, signatures,
+                      heuristics(path, data), records, evidence, self.demonstration)
 
 
 # Unit-test fixture only; the UI demo scans the real samples in demo-samples/.

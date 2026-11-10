@@ -1,5 +1,32 @@
 # Changelog / 更新日志 / Журнал изменений
 
+# v2.3.1
+
+## 中文
+- 下载并双击 CourseScanner-v2.3.1-windows-x64.exe，点击「运行无害演示」。不需要 Python、MySQL、解压或手动放置数据库与样本。
+- 单 EXE 内置 117 条 ClamAV SHA-256 记录、13 条 Elastic YARA 内容规则、原样本包的四个文件及第三方许可。直接读取样本包字节，不写出或运行 EICAR。
+- 已验证与文档一致：EICAR 命中 ClamAV 哈希；无害 AgentTesla 文本命中 Elastic YARA；双扩展名由 Python 文件名启发式判为可疑；普通文本未发现威胁。共 4 项，0 项未扫描。
+- 中英文开发文档更新为 v2.3.1，保留最新截图、架构、算法、UML 和版本历史；界面支持中英俄，只读详情保留。
+- 正常扫描数据在 EXE 旁 data 目录；既有导入记录不被覆盖。内置演示文件只读，不支持隔离或删除。
+- EICAR 是标准测试文件，不是真实病毒；安全软件仍可能拦截。不要关闭防护或信任整个磁盘。被拦截时会报错，不会悄悄改用 Demo 测试签名。
+
+## English
+- Download and open CourseScanner-v2.3.1-windows-x64.exe, then click Run Demo. No Python, MySQL, manual extraction, database installation or fixture placement.
+- One EXE includes 117 ClamAV SHA-256 records, 13 Elastic YARA content rules, the four original fixtures and license notices. It reads fixture archive bytes without writing or executing EICAR.
+- Verified results match the reports: EICAR matches ClamAV SHA-256; harmless AgentTesla text matches Elastic YARA; the double extension is Suspicious via Python filename heuristics; normal text has no threat detected. Four items, none skipped.
+- Both development reports are v2.3.1 and retain the latest screenshots, architecture, algorithms, UML and version history. Chinese/English/Russian UI and read-only evidence remain available.
+- Normal scan data is stored in data beside the EXE. Existing imported rows are preserved; built-in fixtures cannot be quarantined or deleted.
+- EICAR is an antivirus test file, not live malware. Security software may still block the package. Do not disable protection or exclude whole drives. Errors are reported without silently substituting demo-only signatures.
+
+## Русский
+- Скачайте и запустите CourseScanner-v2.3.1-windows-x64.exe, затем нажмите кнопку безопасной демонстрации. Python, MySQL, распаковка и ручная установка базы или образцов не нужны.
+- Один EXE содержит 117 записей ClamAV SHA-256, 13 правил Elastic YARA, четыре исходных тестовых файла и лицензии. Файлы читаются из архива без записи EICAR на диск и без запуска.
+- Результаты соответствуют отчётам: EICAR — ClamAV SHA-256; безвредный текст AgentTesla — Elastic YARA; двойное расширение — подозрительный файл по эвристике Python; обычный текст — угроз не обнаружено. Проверено 4, пропущено 0.
+- Оба отчёта обновлены до v2.3.1 и содержат актуальные снимки экрана, архитектуру, алгоритмы, UML и историю версий. Сохранены три языка интерфейса и сведения только для чтения.
+- Рабочие данные находятся в data рядом с EXE. Существующие записи сохраняются; встроенные образцы нельзя удалить или поместить в карантин.
+- EICAR — стандартный тест, а не действующий вирус. Защита может блокировать пакет: не отключайте её и не исключайте целые диски. Ошибки не подменяются демонстрационными совпадениями.
+
+
 # v2.3.0
 
 ## 中文

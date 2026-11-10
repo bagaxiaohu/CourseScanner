@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "01-real-signature-eicar.com",
+      "verdict": "签名命中",
+      "details": "SHA-256: ClamAV: Eicar-Test-Signature"
+    },
+    {
+      "name": "02-real-yara-agenttesla.txt",
+      "verdict": "签名命中",
+      "details": "YARA: Elastic/Windows_Trojan_AgentTesla_ebf431a8"
+    },
+    {
+      "name": "03-report.pdf.exe",
+      "verdict": "可疑",
+      "details": "文件名启发式：文档扩展名后紧跟可执行扩展名"
+    },
+    {
+      "name": "04-normal.txt",
+      "verdict": "未发现威胁",
+      "details": ""
+    }
+  ],
+  "status": "扫描结束：4 项，0 项未扫描",
+  "read_only_details": true,
+  "eicar_not_written": true
+}

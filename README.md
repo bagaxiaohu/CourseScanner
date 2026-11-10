@@ -4,11 +4,11 @@ Python 反恶意软件实验课 B 版：手动选择文件或文件夹，在后�
 
 ## 最新版本 / Latest release / Последний выпуск
 
-[Windows x64 ZIP with ClamAV signatures](https://github.com/bagaxiaohu/CourseScanner/releases/tag/v2.3.0) · [中英俄三语更新说明](CHANGELOG.md)
+[Windows x64 single EXE — no extraction](https://github.com/bagaxiaohu/CourseScanner/releases/tag/v2.3.1) · [中英俄三语更新说明](CHANGELOG.md)
 
-完整解压后双击 EXE；保留旁边的 data 目录。 / Extract the entire archive and launch the EXE. / Распакуйте весь архив и запустите EXE.
+下载 EXE → 双击 → 运行无害演示。数据库和四份样本已内置，无需解压。 / Download EXE → open → Run Demo. Database and fixtures are built in. / Скачайте EXE → запустите → нажмите кнопку демонстрации. Распаковка не нужна.
 
-最新版开发说明：[中文](docs/CourseScanner_v2.3.0_Development_ZH.docx) · [English](docs/CourseScanner_v2.3.0_Development_EN.docx)。
+最新版开发说明：[中文](docs/CourseScanner_v2.3.1_Development_ZH.docx) · [English](docs/CourseScanner_v2.3.1_Development_EN.docx)。
 
 ## 可选签名导入 / Optional signature import / Импорт сигнатур
 
@@ -31,9 +31,9 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m scanner
 ```
 
-点击 **运行无害演示**，默认分别展示仅 SHA-256 命中、仅 YARA 命中、双扩展名可疑与未发现威胁。双击「检测依据」查看只读详情。可选样本 ZIP 中的 demo-samples 可放在 EXE 旁。删除不进回收站。
+已发布 EXE 点击 **运行无害演示** 即可复现文档中的四项结果。源码未配置发布资源时使用独立 Demo 测试库，不能将其与发布版导入库命中混淆。双击「检测依据」查看只读详情。删除不进回收站。
 
-签名数据库和隔离区位于项目的 data 目录。演示会在项目 data/demo 目录生成四份新文件，每次独立生成，建议演示结束后清理 data/demo 下的演示目录。
+EXE 的正常扫描数据库和隔离区在 EXE 旁的 data 目录；发布版演示直接读取内置资源，不生成可执行样本。源码的独立 Demo 在项目 data/demo 下生成测试文件。
 
 ## 验证
 
@@ -46,7 +46,7 @@ python -m venv .venv
 
 ## 边界
 
-签名库只自带无害演示签名；不运行样本，不是商用杀毒软件，不提供实时防护或动态行为分析。隔离是本地封装和移除原路径，不是虚拟机沙箱或加密存储。请只用有权处置的文件。
+发布 EXE 内置 117 条 ClamAV 哈希记录和 13 条 Elastic 内容规则；不运行样本，不是商用杀毒软件，不提供实时防护或动态行为分析。隔离是本地封装和移除原路径，不是虚拟机沙箱或加密存储。请只用有权处置的文件。
 
 ## v2.0.0
 
@@ -57,3 +57,7 @@ python -m venv .venv
 同一窗口中的扫描结果累积，点击清空结果才清空列表。新增俄语界面，移除副标题中的「不自动处置」文案。隔离和删除仍需确认。
 
 最新课程报告包含正式版本和本地迭代记录。各版本之间的变化可在 Git 标签或提交历史中查看。
+
+## Build v2.3.1
+
+See [BUILD.md](BUILD.md). EICAR is a standard test fixture. Security products may block it; do not disable endpoint protection.
