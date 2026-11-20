@@ -15,7 +15,7 @@ from .engine import Scanner, SignatureDB, create_safe_demo
 from .vault import Vault
 
 
-EN = {
+EN = {"行为日志":"Behavior log","有效事件":"Usable events","写入后启动":"Write then launch (clues)",
     "内置演示样本只读。": "Built-in demo files are read-only.",
     "演示命中": "Demo match",
     "检测详情（只读）": "Detection details (read-only)", "命中记录": "Matched record",
@@ -72,7 +72,7 @@ EN = {
     "执行以下操作？{action}": "Perform this action? {action}",
     "已完成：{action}": "Completed: {action}", "处置失败": "File Action Failed", "操作失败": "Action Failed",
 }
-RU = {
+RU = {"行为日志":"Журнал поведения","有效事件":"События","写入后启动":"Запись и запуск (признаки)",
     "内置演示样本只读。": "Встроенные демонстрационные файлы доступны только для чтения.",
     "演示命中": "Демонстрационное совпадение",
     "检测详情（只读）": "Подробности обнаружения (только чтение)", "命中记录": "Найденная запись",
@@ -250,7 +250,7 @@ class App:
         self.table, self.scan_buttons = self.panel(self.scan_tab, [
             [("扫描文件", self.files), ("扫描文件夹", self.folder), ("运行无害演示", self.demo),
              ("停止扫描", self.stop), ("清空结果", self.clear)],
-            [("隔离选中项", lambda: self.act("quarantine")),
+            [("行为日志", self.behavior_report), ("隔离选中项", lambda: self.act("quarantine")),
              ("永久删除选中项", lambda: self.act("delete"))]
         ], self.scan_detail)
         self.box, self.vault_buttons = self.panel(self.vault_tab, [
@@ -334,6 +334,21 @@ class App:
         x.grid(row=1, column=0, sticky="ew")
         table.bind("<<TreeviewSelect>>", lambda _: detail())
         return table, buttons
+
+    def behavior_report(self):
+        from .behavior import analyze
+        path = filedialog.askopenfilename(filetypes=[("Sysmon XML","*.xml")])
+        if not path: return
+        try:
+            with open(path,"rb") as stream:
+                count,hits=analyze(stream.read(4*1024*1024+1))
+        except Exception as exc:
+            messagebox.showerror("Sysmon XML",str(exc),parent=self.root)
+            return
+        win=tk.Toplevel(self.root); win.title(self.tr("行为日志"))
+        box=tk.Text(win,wrap="word"); box.pack(fill="both",expand=True)
+        box.insert("end",f"{self.tr('有效事件')}: {count}\n{self.tr('写入后启动')}: {len(hits)}\n\n"+"\n".join(hits))
+        box.configure(state="disabled")
 
     def controls(self):
         for key, button in self.scan_buttons.items():
@@ -682,3 +697,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

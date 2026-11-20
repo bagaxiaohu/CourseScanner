@@ -1,5 +1,24 @@
 # Changelog / 更新日志 / Журнал изменений
 
+# v2.4.0
+
+## 中文
+- 新增离线行为日志分析：点击「行为日志」，选择导出的 Sysmon XML（≤ 4 MiB）。程序关联事件 11（文件创建）和事件 1（进程创建），列出「某进程写入文件后 60 秒内又启动该文件」的事件对，显示主机、两个时间戳、事件记录号和路径。
+- 新增 scanner/behavior.py 和 3 项测试，共 20 项单元测试通过。
+- 开发说明更新为 v2.4.0 修订 R3：全文重写，重画架构、检测流程、PE 字段、时序和行为关联图，更换为 v2.4.0 截图。
+- 测试数据：Teaching-trace-SYNTHETIC.xml（45 秒间隔，1 条命中）。
+
+## English
+- Added offline behavior-log analysis: click Behavior log and choose an exported Sysmon XML file (≤ 4 MiB). Events 11 (file create) and 1 (process create) are correlated to list pairs where a process writes a file and starts it within 60 s, with host, both timestamps, record IDs and path.
+- Added scanner/behavior.py and 3 tests; all 20 unit tests pass.
+- Development report updated to v2.4.0 revision R3: full rewrite with new architecture, detection-flow, PE-field, sequence and behavior diagrams and v2.4.0 screenshots.
+- Test data: Teaching-trace-SYNTHETIC.xml (45 s gap, 1 hit).
+
+## Русский
+- Добавлен офлайн-анализ журнала поведения: кнопка «Журнал поведения», выбор экспортированного XML Sysmon (≤ 4 МиБ). События 11 (создание файла) и 1 (создание процесса) сопоставляются: процесс записал файл и запустил его в течение 60 с.
+- Добавлены scanner/behavior.py и 3 теста; все 20 модульных тестов проходят.
+- Отчёт о разработке обновлён до v2.4.0, редакция R3.
+
 # v2.3.1
 
 ## 中文
